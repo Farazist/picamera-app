@@ -93,7 +93,7 @@ class Capture(QWidget):
         self.take_btn = QPushButton()
         self.take_btn.setFixedSize(110, 110)
         self.take_btn.setStyleSheet(btn_style)
-        self.take_btn.setIcon(QIcon('images/1/camera.png')) 
+        self.take_btn.setIcon(QIcon('images/camera.png')) 
         self.take_btn.setIconSize(QSize(95, 95))
         self.take_btn.clicked.connect(self.onChanged)
         r_vbox.addWidget(self.take_btn, alignment=Qt.AlignCenter)
@@ -150,7 +150,7 @@ class Capture(QWidget):
         if not self.timer.isActive():
             self.flag = True
             try:
-                self.cap = cv.VideoCapture(0)
+                self.cap = cv.VideoCapture(1)
                 self.timer.start(2)
             except:
                 print('Error')
