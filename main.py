@@ -1,12 +1,13 @@
-from PyQt5.QtWidgets import (QWidget, QPushButton, QLabel, QHBoxLayout, QVBoxLayout,
+from PySide2.QtWidgets import (QWidget, QPushButton, QLabel, QHBoxLayout, QVBoxLayout,
                              QGroupBox, QComboBox, QLineEdit, QFileDialog, QApplication)
-from PyQt5.QtCore import Qt, QTimer, QSize, QDir
-from PyQt5.QtGui import QPixmap, QImage, QIcon, QFont, QPalette
+from PySide2.QtCore import Qt, QTimer, QSize, QDir
+from PySide2.QtGui import QPixmap, QImage, QIcon, QFont, QPalette
 import sys
 import os
 import cv2 as cv
 import datetime
 from DataBase import Database
+import picamera
 
 def getCategories():
     global gategories_name
@@ -98,20 +99,20 @@ class Capture(QWidget):
         self.take_btn.clicked.connect(self.onChanged)
         r_vbox.addWidget(self.take_btn, alignment=Qt.AlignCenter)
 
-
         label = QLabel(self)
         label.setStyleSheet('background-color: none')
         pixmap = QPixmap('images/farazist.png')
         label.setPixmap(pixmap)
         r_vbox.addWidget(label, alignment=Qt.AlignCenter|Qt.AlignBottom)
 
-        self.controlTimer()
+        self.camera = PiCamera()
+        self.camera.start_preview(fullscreen=False, window = (100, 20, 640, 480))
+        
         # self.showMaximized()
                 
     def onChanged(self):
         if not self.flag:
             print('camera is off')
-
         else:
             directory = str(self.combo.currentIndex())
             parent_dir = "Bottles Images"   
@@ -126,35 +127,9 @@ class Capture(QWidget):
             name = str(datetime.datetime.now())
             name = name.replace(':', '-')
             name = name.replace('.', '-')
-            cv.imwrite(path + '/' + name + '.jpg', cv.cvtColor(self.image, cv.COLOR_RGB2BGR))
+            # cv.imwrite(path + '/' + name + '.jpg', cv.cvtColor(self.image, cv.COLOR_RGB2BGR))
+            self.camera.capture(path + '/' + name + '.jpg')
             
-    def viewCam(self):
-        try:
-            ret, self.image = self.cap.read()
-            self.image = cv.cvtColor(self.image, cv.COLOR_BGR2RGB)
-            self.image = cv.flip(self.image, 1)
-
-            # get image infos
-            height, width, channel = self.image.shape
-            step = channel * width
-
-            # create QImage from image
-            qImg = QImage(self.image.data, width, height, step, QImage.Format_RGB888)
-            self.image_label.setPixmap(QPixmap.fromImage(qImg))
-        except:
-            self.image_label.setText('Error')
-            self.image_label.setStyleSheet('color: #ffffff; font-size: 40px; background-color: none;')
-
-    def controlTimer(self):
-        # if timer is stopped
-        if not self.timer.isActive():
-            self.flag = True
-            try:
-                self.cap = cv.VideoCapture(1)
-                self.timer.start(2)
-            except:
-                print('Error')
-
     def setFolder(self):
         options = QFileDialog.DontResolveSymlinks | QFileDialog.ShowDirsOnly 
         folder  = QFileDialog.getExistingDirectory(self, 
