@@ -4,20 +4,9 @@ from PySide2.QtCore import Qt, QTimer, QSize, QDir
 from PySide2.QtGui import QPixmap, QImage, QIcon, QFont, QPalette
 import sys
 import os
-import cv2 as cv
 import datetime
-from DataBase import Database
-import picamera
-
-def getCategories():
-    global gategories_name
-
-    gategories_number = len(items)
-    print(gategories_number)
-    gategories_name = []
-    for i in range(gategories_number):
-        gategories_name.append(items[i]['name'])
-    return gategories_name
+from picamera import PiCamera
+import time
 
 groupbox_style = 'background-color: qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #373535, stop:1 #5f5c5c);'
 btn_style = 'QPushButton { background-color: none } QPushButton:pressed { background-color: #e9cd72 } QPushButton {border: 2px solid #d0d1d4} QPushButton {border-radius: 25px}'
@@ -28,7 +17,6 @@ class Capture(QWidget):
     def __init__(self):
         QWidget.__init__(self)
         self.flag = False
-        bottle_list = getCategories()
 
         self.setWindowTitle("farazist picture")
         self.setStyleSheet('background-color: #898989')
@@ -49,8 +37,6 @@ class Capture(QWidget):
         self.image_label = QLabel()
         l_vbox.addWidget(self.image_label, alignment=Qt.AlignCenter)
 
-        self.timer = QTimer()
-        self.timer.timeout.connect(self.viewCam)
 
         # ------------ right widgets -----------
         r_groupbox = QGroupBox()
@@ -63,33 +49,51 @@ class Capture(QWidget):
         r_vbox.setContentsMargins(0, 20, 0, 5)
         r_groupbox.setLayout(r_vbox)
 
-        r_hbox = QHBoxLayout()
-        r_hbox.setSpacing(5)
+        r_hbox1 = QHBoxLayout()
+        r_hbox1.setSpacing(5)
+
+        r_hbox2 = QHBoxLayout()
+        r_hbox2.setSpacing(5)
         
         self.combo = QComboBox()
         self.combo.setStyleSheet('background-color: #d5d5d5; selection-background-color: #9a9a9a; font-size: 22px;')
         self.combo.setFixedSize(450, 40)
         self.combo.setLayoutDirection(Qt.RightToLeft)
-        for i in range(len(bottle_list)):
-            self.combo.addItem(bottle_list[i])
+        for i in range(len(items)):
+            self.combo.addItem(items[i])
         self.combo.setFont(label_font)
         # self.combo.activated[str].connect(self.onChanged)
         r_vbox.addWidget(self.combo, alignment=Qt.AlignHCenter)
 
         self.lineEdit = QLineEdit()
-        self.lineEdit.setPlaceholderText('D:/Farazist project/bottles')
+        self.lineEdit.setPlaceholderText('/home/pi/Documents')
         self.lineEdit.setStyleSheet('background-color: #d5d5d5; font-size: 18px')
         self.lineEdit.setFixedSize(320, 40)
-        r_hbox.addWidget(self.lineEdit)
+        r_hbox1.addWidget(self.lineEdit)
 
         self.browse_btn = QPushButton()
         self.browse_btn.setStyleSheet('background-color: qlineargradient(x1:0, y1:0, x2:0, y2:1, stop:0 #f7f7f8, stop:1 #898c91); color: #373737; font-size: 16px; border: none')
         self.browse_btn.setFixedSize(100, 40)
         self.browse_btn.setText('Browse')
         self.browse_btn.clicked.connect(self.setFolder)
-        r_hbox.addWidget(self.browse_btn)
+        r_hbox1.addWidget(self.browse_btn)
 
-        r_vbox.addLayout(r_hbox)
+        r_vbox.addLayout(r_hbox1)
+
+        self.time_tb = QLineEdit()
+        self.time_tb.setPlaceholderText('4')
+        self.time_tb.setStyleSheet('background-color: #d5d5d5; font-size: 18px')
+        self.time_tb.setFixedSize(320, 40)
+        r_hbox2.addWidget(self.time_tb)
+
+        self.time_label = QLabel()
+        self.time_label.setText('تایمر')
+        self.time_label.setAlignment(Qt.AlignCenter)
+        self.time_label.setStyleSheet('background-color: none; color: #ffffff; font-size: 18px')
+        self.time_label.setFixedSize(100, 40)
+        r_hbox2.addWidget(self.time_label)
+
+        r_vbox.addLayout(r_hbox2)
 
         self.take_btn = QPushButton()
         self.take_btn.setFixedSize(110, 110)
@@ -102,6 +106,7 @@ class Capture(QWidget):
         label = QLabel(self)
         label.setStyleSheet('background-color: none')
         pixmap = QPixmap('images/farazist.png')
+        pixmap = pixmap.scaled(120, 120, Qt.KeepAspectRatio, Qt.FastTransformation)
         label.setPixmap(pixmap)
         r_vbox.addWidget(label, alignment=Qt.AlignCenter|Qt.AlignBottom)
 
@@ -111,9 +116,7 @@ class Capture(QWidget):
         # self.showMaximized()
                 
     def onChanged(self):
-        if not self.flag:
-            print('camera is off')
-        else:
+        
             directory = str(self.combo.currentIndex())
             parent_dir = "Bottles Images"   
             path = os.path.join(self.lineEdit.text(),parent_dir, directory)  
@@ -127,7 +130,6 @@ class Capture(QWidget):
             name = str(datetime.datetime.now())
             name = name.replace(':', '-')
             name = name.replace('.', '-')
-            # cv.imwrite(path + '/' + name + '.jpg', cv.cvtColor(self.image, cv.COLOR_RGB2BGR))
             self.camera.capture(path + '/' + name + '.jpg')
             
     def setFolder(self):
@@ -137,11 +139,21 @@ class Capture(QWidget):
                             self.lineEdit.text(),
                             options=options)
         self.lineEdit.setText(folder)
+        
+def getItems():
+    items = []
+    f = open("items.txt", "r")
+    for line in f:
+        items.append(line[:-1])
+    return items
+
 
 if __name__ == '__main__':
-    items = Database.getItems()
-    getCategories()
+    items = getItems()
     app = QApplication(sys.argv)
     screen = Capture()
     screen.showMaximized()
-    sys.exit(app.exec_())
+    try:
+        sys.exit(app.exec_())
+    except SystemExit as e:
+        print(e)
