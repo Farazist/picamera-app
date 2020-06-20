@@ -1,7 +1,7 @@
 from PySide2.QtWidgets import (QWidget, QPushButton, QLabel, QHBoxLayout, QVBoxLayout,
                              QGroupBox, QComboBox, QLineEdit, QFileDialog, QApplication,
                              QSpinBox, QLCDNumber)
-from PySide2.QtCore import Qt, QTimer, QSize, QDir
+from PySide2.QtCore import Qt, QTimer, QSize, QDir, Signal, QThread
 from PySide2.QtGui import QPixmap, QImage, QIcon, QFont, QPalette
 import sys
 import os
@@ -62,7 +62,6 @@ class Capture(QWidget):
 
         self.browse_btn = QPushButton()
         self.browse_btn.setStyleSheet(BTN_BROWSE_STYLE)
-        # self.browse_btn.setText('Browse')
         self.browse_btn.setIcon(QIcon('images/browse.png')) 
         self.browse_btn.setIconSize(QSize(45, 45))
         self.browse_btn.clicked.connect(self.setFolder)
@@ -115,7 +114,6 @@ class Capture(QWidget):
         groupBox_hLayout2.addWidget(self.btn_start)
         
         self.btn_pause = QPushButton()
-        # self.btn_pause.setText('End')
         self.btn_pause.setStyleSheet(BTN_PAUSE_STYLE)
         self.btn_pause.clicked.connect(self.stopTakeImg)
         self.btn_pause.setIcon(QIcon('images/stop.png')) 
@@ -132,81 +130,69 @@ class Capture(QWidget):
         self.lcd_timer.setStyleSheet(LCDNUMBER_STYLE)
         groupBox_layout.addWidget(self.lcd_timer,alignment=Qt.AlignCenter)
 
-        
+        self.time_left_int = self.time_spinbox.value()
         self.camera = PiCamera()
         self.camera.start_preview(fullscreen=False, window = (20, 0, self.geometry.width()-410, self.geometry.height()))
 
-    def onChanged(self):
-        directory = str(self.combo.currentIndex())
-        parent_dir = "Bottles Images"   
-        path = os.path.join(self.tb_path.text(),parent_dir, directory)  
-            
-        try:
-            os.makedirs(path)  
-            print("Directory '% s' created" % directory)  
-        except OSError:
-            print(("Creation of the directory %s failed" % directory))
-
+    def fileName(self):
         self.name = str(datetime.datetime.now())
         self.name = self.name.replace(':', '-')
         self.name = self.name.replace('.', '-')
 
+    def onChanged(self):
+        directory = str(self.combo.currentIndex())
+        parent_dir = "Bottles Images"   
+        self.path = os.path.join(self.tb_path.text(),parent_dir, directory)  
+            
         try:
-            self.camera.capture(path + '/' + self.name + '.jpg')
+            os.makedirs(self.path)  
+            print("Directory '% s' created" % directory)  
+        except OSError:
+            print(("Creation of the directory %s failed" % directory))
+
+        self.fileName()
+
+        try:
+            self.camera.capture(self.path + '/' + self.name + '.jpg')
         except Exception as e:
             print('error: ', e)
                 
     def startTakeImg(self):
             directory = str(self.combo.currentIndex())
             parent_dir = "Bottles Images"   
-            path = os.path.join(self.tb_path.text(),parent_dir, directory)  
-            self.count_down_time = self.time_spinbox.value()
-                
+            self.path = os.path.join(self.tb_path.text(),parent_dir, directory)  
+             
             try:
-                os.makedirs(path)  
+                os.makedirs(self.path)  
                 print("Directory '% s' created" % directory)  
             except OSError:
                 print(("Creation of the directory %s failed" % directory))
 
-            self.name = str(datetime.datetime.now())
-            self.name = self.name.replace(':', '-')
-            self.name = self.name.replace('.', '-')
+            self.time_left_int = self.time_spinbox.value()
+            self.my_qtimer = QTimer(self)
+            self.my_qtimer.timeout.connect(self.timerTimeout)
+            self.my_qtimer.start(1000)
 
-            self.flagT1 = False
-            self.t1 = threading.Timer(self.time_spinbox.value(), self.startTakeImg)
-            self.t2 = threading.Timer(1.0, self.doCountDown)
-            
-            self.t1.start()
-            self.t2.start()
-            self.doCountDown()
-            
+            self.updateGUI()
+    
+    def timerTimeout(self):
+        self.time_left_int -= 1
+        if self.time_left_int == 0:
+            self.time_left_int = self.time_spinbox.value()
             try:
-                self.camera.capture(path + '/' + self.name + '.jpg')
+                self.camera.capture(self.path + '/' + self.name + '.jpg')
             except Exception as e:
                 print('error: ', e)
 
-    def updateDisplay(self):
-        self.lcd_timer.display("%6.2f" % (self.count_down_time / 100))
-        self.lcd_timer.update()
+        self.fileName()
+        self.updateGUI()
 
-    def doCountDown(self):
-        self.count_down_time -= 1
-        self.updateDisplay()
-        if self.count_down_time <= 0:
-            self.start_countdown()
-
-    def start_countdown(self):
-        self.count_down_time = self.time_spinbox.value()
-        self.doCountDown()
-
+    def updateGUI(self):
+           self.lcd_timer.display("%6.2f" % (self.time_left_int / 100))
+    
     def stopTakeImg(self):
-        if self.flagT1 == False:
-            self.t1.cancel()
-            self.t2.cancel()
+            self.my_qtimer.stop()
             self.lcd_timer.display(None)
-            self.count_down_time = self.time_spinbox.value()
-            self.flagT1 = True
-
 
     def setFolder(self):
         options = QFileDialog.DontResolveSymlinks | QFileDialog.ShowDirsOnly 
