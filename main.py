@@ -16,7 +16,7 @@ class Capture(QWidget):
 
     def __init__(self):
         QWidget.__init__(self)
-        self.flagT1 = True
+        self.flagT1 = False
 
         self.setWindowTitle("farazist picture")
         self.setStyleSheet(WINDOW_STYLE)
@@ -158,6 +158,8 @@ class Capture(QWidget):
             print('error: ', e)
                 
     def startTakeImg(self):
+        if self.flagT1 == False:
+            self.flagT1 = True
             directory = str(self.combo.currentIndex())
             parent_dir = "Bottles Images"   
             self.path = os.path.join(self.tb_path.text(),parent_dir, directory)  
@@ -174,6 +176,8 @@ class Capture(QWidget):
             self.my_qtimer.start(1000)
 
             self.updateGUI()
+        if self.flagT1 == True:
+            pass
     
     def timerTimeout(self):
         self.time_left_int -= 1
@@ -191,8 +195,12 @@ class Capture(QWidget):
            self.lcd_timer.display("%6.2f" % (self.time_left_int / 100))
     
     def stopTakeImg(self):
+        if self.flagT1 == True:
             self.my_qtimer.stop()
             self.lcd_timer.display(None)
+            self.flagT1 = False
+        if self.flagT1 == False:
+            pass
 
     def setFolder(self):
         options = QFileDialog.DontResolveSymlinks | QFileDialog.ShowDirsOnly 
